@@ -35,9 +35,7 @@ class Baselenium:
 
 	def fetch_web_element(self, args:tuple, element=None):
 		try:
-			if element:
-				response = element.find_element(*args)
-			response = self.driver.find_element(*args)
+			response = element.find_element(*args) if element else self.driver.find_element(*args)
 		except NoSuchElementException:
 			response = None
 		finally:
@@ -45,9 +43,7 @@ class Baselenium:
 
 	def fetch_web_elements(self, args:tuple, element=None):
 		try:
-			if element:
-				response = element.find_elements(*args)
-			response = self.driver.find_elements(*args)
+			response = element.find_elements(*args) if element else self.driver.find_elements(*args)
 		except NoSuchElementException:
 			response = None
 		finally:
