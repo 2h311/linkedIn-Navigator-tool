@@ -42,12 +42,10 @@ class Baselenium:
 			return response
 
 	def fetch_web_elements(self, args:tuple, element=None):
-		try:
-			response = element.find_elements(*args) if element else self.driver.find_elements(*args)
-		except NoSuchElementException:
+		response = element.find_elements(*args) if element else self.driver.find_elements(*args)
+		if response == []:
 			response = None
-		finally:
-			return response
+		return response
 
 	def scroll_to_view(self, element):
 		self.driver.execute_script("arguments[0].scrollIntoView();", element)

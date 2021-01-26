@@ -36,12 +36,14 @@ class ProfilePage(Base):
 
 	location = By.CSS_SELECTOR, '.profile-topcard__location-data',
 	connections = By.CSS_SELECTOR, '.profile-topcard__connections-data',
-	contacts = By.CSS_SELECTOR, 'profile-topcard__contact-info-item', 
+	contacts = By.CLASS_NAME, 'profile-topcard__contact-info-item', 
 	current_workplace = By.CLASS_NAME, 'profile-topcard__current-positions',
 	experience_show_more_btn = By.CSS_SELECTOR, '#profile-experience button[data-test-experience-section="expand-button"]', 
 	positions = By.CLASS_NAME, 'profile-position',
 
 	education_history = By.CSS_SELECTOR, 'li.profile-education',
+	topcard_educations = By.CLASS_NAME, 'profile-topcard__educations',
+
 	skills = By.ID, 'profile-skills',
 	show_more_skills_btn = By.CSS_SELECTOR, 'button[data-test-skills-section="expand-button"]', 
 	profile_skills = By.CLASS_NAME, 'profile-skills__pill'
@@ -49,6 +51,3 @@ class ProfilePage(Base):
 	recommendations = By.CSS_SELECTOR, '.profile-recommendation-list',
 	accomplishments = By.CSS_SELECTOR, '.profile-accomplishments',
 	interests = By.CLASS_NAME, 'profile-interests-entity', 
-
-class AccountUpgrade:
-	account_upgrade = By.CSS_SELECTOR, 'section.profile-body__upgrade',  
