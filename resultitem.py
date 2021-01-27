@@ -1,28 +1,23 @@
-class ResultItem:
-	@staticmethod
-	def sift_text(element):
-		if element:
-			return element.text 
-
+class ResultItemWorks:
 	def name(self, dict_):
 		name = fetch_web_element(args=ResultItem.name, element=li)
-		name = self.sift_text(name)
-		dict_['Name'] = name
+		if (text := sift_text(name)):
+			dict_['Name'] = text
 	
 	def current_workplace(self, dict_):
 		current_workplace = fetch_web_element(element=li, args=ResultItem.current_workplace)
-		current_workplace = self.sift_text(current_workplace)
-		dict_['Current Workplace'] = current_workplace
+		if (text := sift_text(current_workplace)):
+			dict_['Current Workplace'] = text 
 
 	def duration(self, dict_):
 		duration = fetch_web_element(element=li, args=ResultItem.duration)
-		duration = self.sift_text(duration)
-		dict_['Duration'] = duration
+		if (text := sift_text(duration)):
+			dict_['Duration'] = text
 		
 	def location(self, dict_):
 		location = fetch_web_element(element=li, args=ResultItem.location)
-		location = self.sift_text(location)
-		dict_['Location'] = location
+		if (text := sift_text(location)):
+			dict_['Location'] = text
 
 	def previous(self, dict_):
 		previous_workplace = fetch_web_element(element=li, args=ResultItem.previous_workplace)
@@ -30,9 +25,9 @@ class ResultItem:
 		show_more = fetch_web_element(element=li, args=ResultItem.show_more)
 		logging.info('checking for a show more button in previous workplace ')
 		if show_more:
-			show_more.click()
-		previous_workplace = self.sift_text(previous_workplace)
-		dict_['Experience/Previous Workplace'] = previous_workplace
+			driver.execute_script('arguments[0].click();', show_more)
+		if (text := sift_text(previous_workplace)):
+			dict_['Experience/Previous Workplace'] = text
 	
 	def main(self):
 		dict_ = prepopulate_dict()

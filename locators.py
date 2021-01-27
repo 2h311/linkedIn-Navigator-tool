@@ -39,6 +39,7 @@ class ProfilePage(Base):
 	contacts = By.CLASS_NAME, 'profile-topcard__contact-info-item', 
 	current_workplace = By.CLASS_NAME, 'profile-topcard__current-positions',
 	experience_show_more_btn = By.CSS_SELECTOR, '#profile-experience button[data-test-experience-section="expand-button"]', 
+	
 	positions = By.CLASS_NAME, 'profile-position',
 
 	education_history = By.CSS_SELECTOR, 'li.profile-education',
@@ -51,3 +52,6 @@ class ProfilePage(Base):
 	recommendations = By.CSS_SELECTOR, '.profile-recommendation-list',
 	accomplishments = By.CSS_SELECTOR, '.profile-accomplishments',
 	interests = By.CLASS_NAME, 'profile-interests-entity', 
+
+	current_position = By.CLASS_NAME, 'profile-topcard__summary-position-title',
+	duration = By.CLASS_NAME, 'profile-topcard__time-period-bullet',
