@@ -25,6 +25,10 @@ class ResultItem(Base):
 	show_more = By.CSS_SELECTOR, '[class*="result-context__past-roles-button"]'
 	profile_link = By.CSS_SELECTOR, 'a'
 
+class ResultPage(Base):
+	number_of_result = By.CLASS_NAME, 'artdeco-spotlight-tab__primary-text',
+	no_result = By.CLASS_NAME, 'search-results__no-results',
+
 class ProfilePage(Base):
 	name = By.CLASS_NAME, 'profile-topcard-person-entity__name',
 	photo = By.CSS_SELECTOR, 'button[aria-label*=picture] img',

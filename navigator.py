@@ -1,22 +1,183 @@
-from itertools import count
-from configparser import ConfigParser
+import json
 import logging
-from pathlib import Path 
 import pprint
 import re
+import string
 import time 
+from itertools import count
+from configparser import ConfigParser
+from pathlib import Path 
 
+from openpyxl import Workbook
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (NoSuchElementException, StaleElementReferenceException,
 										ElementNotVisibleException, TimeoutException)
 
-from baselenium import Baselenium
-from locators import *
-from xlsxwriter import XlsxWriter
-from filereader import FileReader
+class Baselenium:
+	def __init__(self, driver_path):
+		self.driver_path = driver_path
+		self.create_driver()
+
+	def set_cookies(self, filename:str, /, refresh=False):
+		print("Loading cookies")
+		with open(filename, 'r') as fp:
+			if(contents := json.load(fp)):
+				for content in contents:
+					self.driver.add_cookie(content)
+				if refresh:
+					self.driver.refresh()
+		print("Done loading cookies")
+
+	def create_driver(self):
+		'''
+		creates a browser instance for selenium, 
+		adds some functionalities into the browser instance
+		'''
+		chrome_options = Options()
+		chrome_options.add_argument("start-maximized")
+		chrome_options.add_argument("log-level=3")
+		# the following two options are used to disable chrome browser infobar
+		chrome_options.add_experimental_option("useAutomationExtension", False)
+		chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])
+		self.driver = webdriver.Chrome(executable_path=self.driver_path, options=chrome_options)
+		self.driver.implicitly_wait(12)
+
+	def fetch_web_element(self, args:tuple, element=None):
+		try:
+			response = element.find_element(*args) if element else self.driver.find_element(*args)
+		except NoSuchElementException:
+			response = None
+		finally:
+			return response
+
+	def fetch_web_elements(self, args:tuple, element=None):
+		response = element.find_elements(*args) if element else self.driver.find_elements(*args)
+		if response == []:
+			response = None
+		return response
+
+	def scroll_to_view(self, element):
+		self.driver.execute_script("arguments[0].scrollIntoView();", element)
+
+	def kill(self):
+		self.driver.quit()
+
+class Base:
+	name = 'LinkedIn Navigator Locators'
+
+class LoginPage(Base):
+	iframe = By.TAG_NAME, 'iframe',
+	username = By.ID, 'username',
+	password = By.ID, 'password',
+	signin_btn = By.CSS_SELECTOR, 'button[type="submit"]',
+
+class SearchPage(Base):
+	keywords_input = By.CSS_SELECTOR, 'input[placeholder*="Enter keywords"]',
+	geography_div = By.CSS_SELECTOR, "[data-test-filter-code='GE']",
+	geography_input = By.CSS_SELECTOR, 'input[placeholder="Add locations"]',
+	geography_suggestion = By.CSS_SELECTOR, 'li > button',
+	result_items = By.CSS_SELECTOR, '[class*="search-results__result-item"]' 
+
+class ResultItem(Base):
+	name = By.CLASS_NAME, 'result-lockup__name'
+	current_workplace = By.CSS_SELECTOR, '.result-lockup__highlight-keyword',
+	duration = By.CSS_SELECTOR, 'span.t-black--light', 
+	location = By.CLASS_NAME, 'result-lockup__misc-item',
+	previous_workplace = By.CSS_SELECTOR, '[class*="result-context__summary-list"]'
+	show_more = By.CSS_SELECTOR, '[class*="result-context__past-roles-button"]'
+	profile_link = By.CSS_SELECTOR, 'a'
+
+class ResultPage(Base):
+	number_of_result = By.CLASS_NAME, 'artdeco-spotlight-tab__primary-text',
+	no_result = By.CLASS_NAME, 'search-results__no-results',
+
+class ProfilePage(Base):
+	name = By.CLASS_NAME, 'profile-topcard-person-entity__name',
+	photo = By.CSS_SELECTOR, 'button[aria-label*=picture] img',
+
+	entity_summary = By.CLASS_NAME, 'profile-topcard-person-entity__summary',
+	summary_show_more = By.TAG_NAME, 'button',
+	summary_modal_ok_btn = By.CSS_SELECTOR, '[class*="profile-topcard__summary-modal-footer"]', 
+	summary_modal = By.CLASS_NAME, 'profile-topcard__summary-modal-content',
+
+	location = By.CSS_SELECTOR, '.profile-topcard__location-data',
+	connections = By.CSS_SELECTOR, '.profile-topcard__connections-data',
+	contacts = By.CLASS_NAME, 'profile-topcard__contact-info-item', 
+	current_workplace = By.CLASS_NAME, 'profile-topcard__current-positions',
+	experience_show_more_btn = By.CSS_SELECTOR, '#profile-experience button[data-test-experience-section="expand-button"]', 
+	
+	positions = By.CLASS_NAME, 'profile-position',
+
+	education_history = By.CSS_SELECTOR, 'li.profile-education',
+	topcard_educations = By.CLASS_NAME, 'profile-topcard__educations',
+
+	skills = By.ID, 'profile-skills',
+	show_more_skills_btn = By.CSS_SELECTOR, 'button[data-test-skills-section="expand-button"]', 
+	profile_skills = By.CLASS_NAME, 'profile-skills__pill'
+
+	recommendations = By.CSS_SELECTOR, '.profile-recommendation-list',
+	accomplishments = By.CSS_SELECTOR, '.profile-accomplishments',
+	interests = By.CLASS_NAME, 'profile-interests-entity', 
+
+	current_position = By.CLASS_NAME, 'profile-topcard__summary-position-title',
+	duration = By.CLASS_NAME, 'profile-topcard__time-period-bullet',
+
+class Writer:
+	def __init__(self, filename):
+		self.filename = filename
+
+class XlsxWriter(Writer):
+	def __init__(self, fields, filename='output'):
+		super().__init__(filename)
+		self.fields = fields 
+		self.letters = string.ascii_uppercase[:len(self.fields)]
+		self.file_type = '.xlsx'
+		self.check_filename()
+		self.open_an_active_sheet()
+		self.write_sheet_headers()
+
+	def __repr__(self):
+		return self.filename
+
+	def check_filename(self):
+		if self.file_type not in self.filename:
+			self.filename += self.file_type
+	
+	def open_an_active_sheet(self):
+		self.workbook = Workbook()
+		self.sheet = self.workbook.active
+
+	def close_workbook(self):
+		self.workbook.save(filename=self.filename)
+
+	def write_sheet_headers(self):
+		for letter, field in zip(self.letters, self.fields):
+			self.sheet[letter + str(self.sheet.max_row)].value = field
+
+	def write_to_sheet(self, dictionary):
+		try:
+			max_row = str(self.sheet.max_row + 1)
+			for letter, field in zip(self.letters, self.fields):
+				self.sheet[letter + max_row].value = dictionary.get(field)
+		finally:
+			self.close_workbook()
+
+class FileReader:	
+	@property
+	def file_content(self):
+		filename = input("\aEnter a valid filename: ")
+		path_object = Path(filename)
+		if path_object.exists():
+			print(f"{filename} found...")
+			with path_object.open() as file_handler:
+				content = [ line.strip() for line in file_handler.readlines() ]
+				return content if content else print("\aNo keywords in the file specified")
+		else:
+			raise Exception("\aYou might have to check the file name.")
 
 class ResultItemWorks:
 	def name(self, dict_, li):
@@ -339,7 +500,7 @@ def traverse_pages(writer):
 	for counter in count(1):
 		if counter != 1:
 			url = re.sub('page=\d+', f'page={counter}', driver.current_url)
-			print(url)
+			# print(url)
 			driver.get(url)
 
 		element = fetch_web_element(ResultPage.no_result)
@@ -386,15 +547,13 @@ fields =[
 ]
 
 if __name__ == "__main__":
-	driver_path = "C:/Users/DELL/jobs/chromedriver/chromedriver.exe"
-	# driver_path = "chromedriver/chromedriver.exe"
+	driver_path = "chromedriver/chromedriver.exe"
 	base_url = 'https://www.linkedin.com'
 	logging.basicConfig(format="## %(message)s", level=logging.INFO)
-
 	logging.disable(logging.INFO)
 	bs = Baselenium(driver_path)
 	driver = bs.driver
-	secs = 15
+	secs = 60
 	fetch_web_element = bs.fetch_web_element
 	fetch_web_elements = bs.fetch_web_elements
 	scroll_to_view = bs.scroll_to_view
@@ -402,8 +561,6 @@ if __name__ == "__main__":
 	handles = trigger_extra_tab()
 	switch_window(handles[0])
 
-	# login()
-	# uncomment this to use coookies instead of the login procedure
-	# driver.get(base_url); bs.set_cookies('cookies.json')
+	login()
 	main()
 	bs.kill()
