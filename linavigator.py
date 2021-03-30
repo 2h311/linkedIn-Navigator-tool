@@ -1,10 +1,10 @@
+# -*- coding: utf-8 -*-
+
 import functools
 import logging
 import platform
 import pprint
-# import random
 import re
-import time 
 from pathlib import Path 
 from itertools import count
 from configparser import ConfigParser
@@ -396,33 +396,30 @@ def traverse_pages():
 			url = re.sub('page=\d+', f'page={counter}', driver.current_url)
 			print(url)
 			driver.get(url)
-	
+
+		# check to see if there's a no result notification 
 		element = fetch_web_element(ResultPage.no_result)
-		if not element:
-			card_operations()
-		else:
-			print("No Result Found...")
-			break
+		# return if you can't find an element else do the necessary
+		return None if element else card_operations()
+
+def run_search(key):
+	keyword, geo = key.split(',')
+	driver.get(base_url + '/sales/search/people/?')
+	enter_geography(geo.strip())
+	address = encode_keyword_into_url(keyword.strip())
+	driver.get(address)
+	traverse_pages()
 
 def main():
-	keywords = FileReader().content
 	switch_window(handles[0])
-	login()
-
-	# driver.get(base_url + '/sales/login')
-	# bs.set_cookies('cookies.json')
-	
-	if keywords:
-		for key in keywords:
-			keyword, geo = key.split(',')
-			
-			address = base_url + '/sales/search/people/?'
-			driver.get(address)
-			
-			enter_geography(geo.strip())
-			address = encode_keyword_into_url(keyword.strip())
-			driver.get(address)
-			traverse_pages()
+	# login()
+	driver.get(base_url + '/sales/login')
+	bs.set_cookies('cookies.json')
+	for key in FileReader().content:
+		try:
+			run_search(key)
+		except Exception as error:
+			logging.error('An error occured ' + error)
 
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
@@ -448,27 +445,27 @@ fields =[
 	'Location',
 ]
 
-name = 'chromedriver' if platform.system() == 'Linux' else 'chromedriver.exe'
+if __name__ == '__main__':
+	name = 'chromedriver' if platform.system() == 'Linux' else 'chromedriver.exe'
+	# this is for the client
+	# driver_path = Path('chromedriver') / name
 
-# this is for the client
-# driver_path = Path('chromedriver') / name
+	# this is for me
+	driver_path = Path.cwd().parent.parent/ 'chromedriver' / name
 
-# this is for me
-driver_path = Path.cwd().parent.parent/ 'chromedriver' / name
+	base_url = 'https://www.linkedin.com'
+	logging.basicConfig(format="## %(message)s", level=logging.INFO)
+	logging.disable(logging.INFO)
+	bs = Baselenium(driver_path)
 
-base_url = 'https://www.linkedin.com'
-logging.basicConfig(format="## %(message)s", level=logging.INFO)
+	driver = bs.driver
+	fetch_web_element = bs.fetch_web_element
+	fetch_web_elements = bs.fetch_web_elements
+	sift_text = bs.sift_text
+	scroll_to_view = bs.scroll_to_view
 
-logging.disable(logging.INFO)
-bs = Baselenium(driver_path)
-
-driver = bs.driver
-fetch_web_element = bs.fetch_web_element
-fetch_web_elements = bs.fetch_web_elements
-sift_text = bs.sift_text
-scroll_to_view = bs.scroll_to_view
-
-wait = WebDriverWait(driver, 60, ignored_exceptions=IGNORED_EXCEPTIONS)
-writer = XlsxWriter(fields)
-handles = trigger_extra_tab()
-main()
+	wait = WebDriverWait(driver, 60, ignored_exceptions=IGNORED_EXCEPTIONS)
+	writer = XlsxWriter(fields)
+	handles = trigger_extra_tab()
+	main()
+	writer.close_workbook()
