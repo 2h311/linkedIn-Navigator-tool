@@ -10,7 +10,8 @@ class LoginPage(Base):
 	signin_btn = By.CSS_SELECTOR, 'button[type="submit"]',
 
 class SearchPage(Base):
-	keywords_input = By.CSS_SELECTOR, 'input[placeholder*="Enter keywords"]',
+	# keywords_input = By.CSS_SELECTOR, 'input[placeholder*="Enter keywords"]',
+	keywords_input = By.ID, 'global-typeahead-search-input'
 	geography_div = By.CSS_SELECTOR, "[data-test-filter-code='GE']",
 	geography_input = By.CSS_SELECTOR, 'input[placeholder="Add locations"]',
 	geography_suggestion = By.CSS_SELECTOR, 'li > button',
