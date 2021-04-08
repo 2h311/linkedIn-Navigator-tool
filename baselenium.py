@@ -12,7 +12,7 @@ class Baselenium:
 	def set_cookies(self, filename:str, refresh=False):
 		print("Loading cookies")
 		with open(filename, 'r') as fp:
-			contents = json.load(fp)
+			contents = json.load(fp) 
 			if contents:
 				for content in contents:
 					self.driver.add_cookie(content)
@@ -55,4 +55,4 @@ class Baselenium:
 	@staticmethod
 	def sift_text(element):
 		if isinstance(element, webdriver.remote.webelement.WebElement):
-			return element.text 
+			return element.text.strip() 

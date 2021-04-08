@@ -39,6 +39,6 @@ class XlsxWriter(Writer):
 		try:
 			max_row = str(self.sheet.max_row + 1)
 			for letter, field in zip(self.letters, self.fields):
-				self.sheet[letter + max_row].value = dictionary.get(field)
+				self.sheet[letter + max_row].value = dictionary.get(field).encode('utf-8', errors='ignore')
 		finally:
 			self.close_workbook()

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import functools
 import logging
 import platform
@@ -8,7 +6,7 @@ import re
 from pathlib import Path 
 from itertools import count
 from configparser import ConfigParser
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -403,7 +401,14 @@ def traverse_pages():
 		return None if element else card_operations()
 
 def run_search(key):
-	keyword, geo = key.split(',')
+	split = key.rsplit(sep=',', maxsplit=1)
+	# add a location if it's not included in the file	
+	if len(split) == 1:
+		keyword, geo = unquote(split[0]), 'Singapore'
+	else:
+		keyword, geo = split
+	logging.info(keyword, geo)
+
 	driver.get(base_url + '/sales/search/people/?')
 	enter_geography(geo.strip())
 	address = encode_keyword_into_url(keyword.strip())
@@ -419,8 +424,8 @@ def main():
 		try:
 			run_search(key)
 		except Exception as error:
-			logging.error('An error occured ' + error)
-
+			logging.error(f'An error occured {error}')
+		
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
 	StaleElementReferenceException,
@@ -464,7 +469,7 @@ if __name__ == '__main__':
 	sift_text = bs.sift_text
 	scroll_to_view = bs.scroll_to_view
 
-	wait = WebDriverWait(driver, 60, ignored_exceptions=IGNORED_EXCEPTIONS)
+	wait = WebDriverWait(driver, 45, ignored_exceptions=IGNORED_EXCEPTIONS)
 	writer = XlsxWriter(fields)
 	handles = trigger_extra_tab()
 	main()

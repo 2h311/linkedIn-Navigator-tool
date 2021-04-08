@@ -461,14 +461,19 @@ def name_photo_loc_con(dict_):
 @retry
 def enter_geography(geo):
 	geo_div = driver.find_element_by_css_selector("[data-test-filter-code='GE']")
-	logging.info('filling the geography input')
-	driver.execute_script('arguments[0].click();', geo_div)
-	geo_input = geo_div.find_element_by_css_selector('input[placeholder="Add locations"]')
-	geo_input.send_keys('\b'*1000)
-	geo_input.send_keys(geo)		
-	# click the first geography suggestion
-	geo_element = fetch_web_element(element=geo_div, args=SearchPage.geography_suggestion)
-	driver.execute_script('arguments[0].click();', geo_element)
+	for num in range(5):
+		try:
+			logging.info('filling the geography input')
+			driver.execute_script('arguments[0].click();', geo_div)
+			geo_input = geo_div.find_element_by_css_selector('input[placeholder="Add locations"]')
+			geo_input.send_keys('\b'*1000)
+			geo_input.send_keys(geo.strip())		
+			# click the first geography suggestion
+			geo_element = fetch_web_element(element=geo_div, args=SearchPage.geography_suggestion)
+			driver.execute_script('arguments[0].click();', geo_element)
+			break
+		except Exception as err:
+			print(f"An error occured: {err}")
 
 @retry
 def enter_keyword(keyword):
@@ -562,23 +567,29 @@ def traverse_pages():
 		return None if element else card_operations()
 
 def run_search(key):
-	keyword, geo = key.split(',')
+	split = key.rsplit(sep=',', maxsplit=1)
+	# add a location if it's not included in the file	
+	if len(split) == 1:
+		keyword, geo = unquote(split[0]), 'Singapore'
+	else:
+		keyword, geo = split
+	logging.info(keyword, geo)
+
 	driver.get(base_url + '/sales/search/people/?')
 	enter_geography(geo.strip())
 	address = encode_keyword_into_url(keyword.strip())
 	driver.get(address)
 	traverse_pages()
-			
+
 def main():
 	switch_window(handles[0])
 	login()
-
 	for key in FileReader().content:
 		try:
 			run_search(key)
 		except Exception as error:
-			logging.error('An error occured ' + error)
-
+			logging.error(f'An error occured {error}')
+		
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
 	StaleElementReferenceException,
