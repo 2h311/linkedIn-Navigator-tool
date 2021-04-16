@@ -6,11 +6,13 @@ import logging
 import platform
 import pprint
 import string
+import random
 import re
+import time
 from pathlib import Path 
 from itertools import count
 from configparser import ConfigParser
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from openpyxl import Workbook
 from selenium import webdriver
@@ -263,6 +265,10 @@ def config(filename='db.ini', section='navigator'):
 		raise Exception(f"Section {section} not found in {filename}")
 	return db
 
+def sleep(secs=random.randint(5, 12)):
+	logging.info(f'sleeping for {secs} seconds')
+	time.sleep(secs)
+
 @retry
 def login():
 	# fetch the login credentials
@@ -442,7 +448,6 @@ def name_photo_loc_con(dict_):
 	photo = fetch_web_element(ProfilePage.photo)
 	if photo:
 		photo = photo.get_attribute("src") 
-		# TODO: regex the photo link to make sure it's a valid link
 		logging.info(photo)
 		dict_['Photo'] = photo
 
@@ -466,30 +471,24 @@ def enter_geography(geo):
 			logging.info('filling the geography input')
 			driver.execute_script('arguments[0].click();', geo_div)
 			geo_input = geo_div.find_element_by_css_selector('input[placeholder="Add locations"]')
-			geo_input.send_keys('\b'*1000)
 			geo_input.send_keys(geo.strip())		
 			# click the first geography suggestion
 			geo_element = fetch_web_element(element=geo_div, args=SearchPage.geography_suggestion)
 			driver.execute_script('arguments[0].click();', geo_element)
-			break
+			sleep(5)
+			return driver.current_url
 		except Exception as err:
 			print(f"An error occured: {err}")
 
-@retry
-def enter_keyword(keyword):
-	enter_keyword = wait.until(EC.visibility_of_element_located(SearchPage.keywords_input))
-	enter_keyword.send_keys('\b'*1000)
-	enter_keyword.send_keys(keyword)
-
-def encode_keyword_into_url(keyword):
+def encode_keyword_into_url(current_url, keyword):
 	'''
 	this is an alternative as the search bar in the enter_keyword() is removed.
 	'''
-	current_url = driver.current_url
 	if 'keywords' not in current_url: 
 		address = current_url + '&keywords=' + quote(keyword) 
 	else:
 		address = re.sub('keywords=\w+', f'keywords={quote(keyword)}', current_url)
+	logging.info(address)
 	return address
 
 @retry
@@ -573,12 +572,12 @@ def run_search(key):
 		keyword, geo = unquote(split[0]), 'Singapore'
 	else:
 		keyword, geo = split
-	logging.info(keyword, geo)
-
+	
 	driver.get(base_url + '/sales/search/people/?')
-	enter_geography(geo.strip())
-	address = encode_keyword_into_url(keyword.strip())
+	current_url = enter_geography(geo.strip())
+	address = encode_keyword_into_url(current_url, keyword.strip())
 	driver.get(address)
+	sleep()
 	traverse_pages()
 
 def main():
@@ -587,9 +586,10 @@ def main():
 	for key in FileReader().content:
 		try:
 			run_search(key)
+			sleep()
 		except Exception as error:
 			logging.error(f'An error occured {error}')
-		
+
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
 	StaleElementReferenceException,
@@ -614,14 +614,13 @@ fields =[
 	'Location',
 ]
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 	name = 'chromedriver' if platform.system() == 'Linux' else 'chromedriver.exe'
-	# this is for the client
 	driver_path = Path('chromedriver') / name
 
 	base_url = 'https://www.linkedin.com'
 	logging.basicConfig(format="## %(message)s", level=logging.INFO)
-	logging.disable(logging.INFO)
+	logging.disable() 
 	bs = Baselenium(driver_path)
 
 	driver = bs.driver

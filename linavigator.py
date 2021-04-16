@@ -2,7 +2,9 @@ import functools
 import logging
 import platform
 import pprint
+import random
 import re
+import time
 from pathlib import Path 
 from itertools import count
 from configparser import ConfigParser
@@ -96,6 +98,10 @@ def config(filename='db.ini', section='navigator'):
 	else:
 		raise Exception(f"Section {section} not found in {filename}")
 	return db
+
+def sleep(secs=random.randint(3, 12)):
+	logging.info(f'sleeping for {secs} seconds')
+	time.sleep(secs)
 
 @retry
 def login():
@@ -300,30 +306,30 @@ def enter_geography(geo):
 			logging.info('filling the geography input')
 			driver.execute_script('arguments[0].click();', geo_div)
 			geo_input = geo_div.find_element_by_css_selector('input[placeholder="Add locations"]')
-			geo_input.send_keys('\b'*1000)
 			geo_input.send_keys(geo.strip())		
 			# click the first geography suggestion
 			geo_element = fetch_web_element(element=geo_div, args=SearchPage.geography_suggestion)
 			driver.execute_script('arguments[0].click();', geo_element)
-			break
+			sleep(5)
+			return driver.current_url
 		except Exception as err:
 			print(f"An error occured: {err}")
 
-@retry
-def enter_keyword(keyword):
-	enter_keyword = wait.until(EC.visibility_of_element_located(SearchPage.keywords_input))
-	enter_keyword.send_keys('\b'*1000)
-	enter_keyword.send_keys(keyword)
+# @retry
+# def enter_keyword(keyword):
+# 	enter_keyword = wait.until(EC.visibility_of_element_located(SearchPage.keywords_input))
+# 	enter_keyword.send_keys('\b'*1000)
+# 	enter_keyword.send_keys(keyword)
 
-def encode_keyword_into_url(keyword):
+def encode_keyword_into_url(current_url, keyword):
 	'''
 	this is an alternative as the search bar in the enter_keyword() is removed.
 	'''
-	current_url = driver.current_url
 	if 'keywords' not in current_url: 
 		address = current_url + '&keywords=' + quote(keyword) 
 	else:
 		address = re.sub('keywords=\w+', f'keywords={quote(keyword)}', current_url)
+	logging.info(address)
 	return address
 
 @retry
@@ -407,11 +413,10 @@ def run_search(key):
 		keyword, geo = unquote(split[0]), 'Singapore'
 	else:
 		keyword, geo = split
-	logging.info(keyword, geo)
-
+	
 	driver.get(base_url + '/sales/search/people/?')
-	enter_geography(geo.strip())
-	address = encode_keyword_into_url(keyword.strip())
+	current_url = enter_geography(geo.strip())
+	address = encode_keyword_into_url(current_url, keyword.strip())
 	driver.get(address)
 	traverse_pages()
 
@@ -425,7 +430,9 @@ def main():
 			run_search(key)
 		except Exception as error:
 			logging.error(f'An error occured {error}')
-		
+
+		sleep()
+
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
 	StaleElementReferenceException,
