@@ -401,10 +401,12 @@ def traverse_pages():
 			print(url)
 			driver.get(url)
 
-		# check to see if there's a no result notification 
-		element = fetch_web_element(ResultPage.no_result)
-		# return if you can't find an element else do the necessary
-		return None if element else card_operations()
+			# check to see if there's a no result notification 
+			# return if you can't find an element else do the necessary
+			if fetch_web_element(ResultPage.no_result):
+				return None
+				
+		card_operations()
 
 def run_search(key):
 	split = key.rsplit(sep=',', maxsplit=1)
@@ -431,7 +433,7 @@ def main():
 		except Exception as error:
 			logging.error(f'An error occured {error}')
 
-		sleep()
+	# 	sleep()
 
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
