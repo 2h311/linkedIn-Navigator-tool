@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
-
 import functools
 import json
 import logging
 import platform
 import pprint
-import string
 import random
 import re
+import string
 import time
 from pathlib import Path 
 from itertools import count
@@ -17,26 +15,13 @@ from urllib.parse import quote, unquote
 from openpyxl import Workbook
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (NoSuchElementException,
 										StaleElementReferenceException,
 										ElementNotVisibleException,
 										TimeoutException)
-
-class FileReader:	
-	@property
-	def content(self):
-		path_object = Path(input("\aEnter a valid filename: "))
-		if path_object.exists():
-			with path_object.open() as file_handler:
-				content = [ line.strip() for line in file_handler.readlines() ]
-				if content:
-					return content
-
-		raise Exception("\aYou might have to check the file name.")
-
 class Writer:
 	def __init__(self, filename):
 		self.filename = filename
@@ -73,7 +58,7 @@ class XlsxWriter(Writer):
 		try:
 			max_row = str(self.sheet.max_row + 1)
 			for letter, field in zip(self.letters, self.fields):
-				self.sheet[letter + max_row].value = dictionary.get(field)
+				self.sheet[letter + max_row].value = dictionary.get(field).encode('utf-8', errors='ignore')
 		finally:
 			self.close_workbook()
 
@@ -87,7 +72,8 @@ class LoginPage(Base):
 	signin_btn = By.CSS_SELECTOR, 'button[type="submit"]',
 
 class SearchPage(Base):
-	keywords_input = By.CSS_SELECTOR, 'input[placeholder*="Enter keywords"]',
+	# keywords_input = By.CSS_SELECTOR, 'input[placeholder*="Enter keywords"]',
+	keywords_input = By.ID, 'global-typeahead-search-input'
 	geography_div = By.CSS_SELECTOR, "[data-test-filter-code='GE']",
 	geography_input = By.CSS_SELECTOR, 'input[placeholder="Add locations"]',
 	geography_suggestion = By.CSS_SELECTOR, 'li > button',
@@ -145,13 +131,13 @@ class Baselenium:
 	def set_cookies(self, filename:str, refresh=False):
 		print("Loading cookies")
 		with open(filename, 'r') as fp:
-			contents = json.load(fp)
+			contents = json.load(fp) 
 			if contents:
 				for content in contents:
 					self.driver.add_cookie(content)
 				if refresh:
 					self.driver.refresh()
-		print("Done loading cookies")
+				print("Done loading cookies")
 
 	def create_driver(self):
 		'''
@@ -188,44 +174,46 @@ class Baselenium:
 	@staticmethod
 	def sift_text(element):
 		if isinstance(element, webdriver.remote.webelement.WebElement):
-			return element.text 
+			return element.text.strip() 
+
+class FileReader:	
+	@property
+	def content(self):
+		path_object = Path(input("\aEnter a valid filename: "))
+		if path_object.exists():
+			with path_object.open() as file_handler:
+				return [ line.strip() for line in file_handler.readlines() ]
+		raise Exception("\aYou might have to check the file name.")
 
 class ResultItemWorks:
 	def name(self, dict_, li):
 		name = fetch_web_element(args=ResultItem.name, element=li)
-		# I used the walrus operator here before, 
-		text = sift_text(name)
-		
-		if text:
+		if (text := sift_text(name)): 
 			dict_['Name'] = text
 	
 	def current_workplace(self, dict_, li):
 		current_workplace = fetch_web_element(element=li, args=ResultItem.current_workplace)
-		text = sift_text(current_workplace)
-		if text:
+		if (text := sift_text(current_workplace)):
 			dict_['Current Workplace'] = text 
 
 	def duration(self, dict_, li):
 		duration = fetch_web_element(element=li, args=ResultItem.duration)
-		text = sift_text(duration)
-		if text:
+		if (text := sift_text(duration)):
 			dict_['Duration'] = text
 		
 	def location(self, dict_, li):
 		location = fetch_web_element(element=li, args=ResultItem.location)
-		text = sift_text(location)
-		if text:
+		if (text := sift_text(location)):
 			dict_['Location'] = text
 
 	def previous(self, dict_, li):
 		previous_workplace = fetch_web_element(element=li, args=ResultItem.previous_workplace)
 		# check if there's a show more button
 		show_more = fetch_web_element(element=li, args=ResultItem.show_more)
-		logging.info('checking for a show more button in previous workplace ')
+		logging.info('checking for a show more button in previous workplace')
 		if show_more: 	
 			driver.execute_script('arguments[0].click();', show_more)
-		text = sift_text(previous_workplace)
-		if text:
+		if (text := sift_text(previous_workplace)):
 			dict_['Experience/Previous Workplace'] = text
 	
 	def main(self, li):
@@ -265,7 +253,7 @@ def config(filename='db.ini', section='navigator'):
 		raise Exception(f"Section {section} not found in {filename}")
 	return db
 
-def sleep(secs=random.randint(5, 12)):
+def sleep(secs=random.randint(1, 5)):
 	logging.info(f'sleeping for {secs} seconds')
 	time.sleep(secs)
 
@@ -347,13 +335,11 @@ def skills(dict_):
 	# check if there's a show more button
 	show_more = fetch_web_element(element=profile_skills, args=ProfilePage.show_more_skills_btn) 
 	if show_more:
-		for num in range(5):
-			try:
-				scroll_to_view(show_more)
-				driver.execute_script('arguments[0].click();', show_more)
-				break
-			except Exception as err:
-				print(f"An error occured: {err}") 
+		try:
+			scroll_to_view(show_more)
+			driver.execute_script('arguments[0].click();', show_more)
+		except Exception as err:
+			print(f"An error occured: {err}") 
 
 	skills = fetch_web_elements(element=profile_skills, args=ProfilePage.profile_skills) 
 	if skills:
@@ -367,13 +353,11 @@ def experience_previous_workplace(dict_):
 	# check if there's a show more button for the previous workplace 
 	show_more = fetch_web_element(ProfilePage.experience_show_more_btn)
 	if show_more:
-		for num in range(5):
-			try:
-				scroll_to_view(show_more)
-				driver.execute_script('arguments[0].click();', show_more)
-				break
-			except Exception as err:
-				print(f"An error occured: {err}") 
+		try:
+			scroll_to_view(show_more)
+			driver.execute_script('arguments[0].click();', show_more)
+		except Exception as err:
+			print(f"An error occured: {err}") 
 
 	positions = wait.until(EC.visibility_of_all_elements_located(ProfilePage.positions))
 	if positions:
@@ -452,38 +436,47 @@ def name_photo_loc_con(dict_):
 		dict_['Photo'] = photo
 
 	location = fetch_web_element(ProfilePage.location)
-	location = sift_text(location)
-	if location:
+	if (location := sift_text(location)):
 		logging.info(location)
 		dict_['Location'] = location
 
 	connections = fetch_web_element(ProfilePage.connections)
-	connections = sift_text(connections)
-	if connections:
+	if (connections := sift_text(connections)):
 		logging.info(connections)
 		dict_['Connections'] = connections
 
 @retry
 def enter_geography(geo):
 	geo_div = driver.find_element_by_css_selector("[data-test-filter-code='GE']")
-	for num in range(5):
-		try:
-			logging.info('filling the geography input')
-			driver.execute_script('arguments[0].click();', geo_div)
-			geo_input = geo_div.find_element_by_css_selector('input[placeholder="Add locations"]')
-			geo_input.send_keys(geo.strip())		
-			# click the first geography suggestion
-			geo_element = fetch_web_element(element=geo_div, args=SearchPage.geography_suggestion)
-			driver.execute_script('arguments[0].click();', geo_element)
-			sleep(5)
-			return driver.current_url
-		except Exception as err:
-			print(f"An error occured: {err}")
+	logging.info('filling the geography input')
+	driver.execute_script('arguments[0].click();', geo_div)
+	geo_input = geo_div.find_element_by_css_selector('input[placeholder="Add locations"]')
+	geo_input.send_keys(geo.strip())		
+	# click the first geography suggestion
+	geo_element = fetch_web_element(element=geo_div, args=SearchPage.geography_suggestion)
+	driver.execute_script('arguments[0].click();', geo_element)
+	sleep(5)
 
-def encode_keyword_into_url(current_url, keyword):
+@retry
+def enter_industry(industry):
+	logging.info('filling the industry input')	
+	# click the div to expose the input element
+	industry_div = driver.find_element_by_css_selector('[data-test-filter-code="I"]')
+	industry_div.click()
+	industry_input_element = driver.find_element_by_css_selector('[placeholder="Add industries"]')       
+	industry_input_element.send_keys(industry)
+	sleep(5)
+	# click the suggestion that matches the inputted string
+	suggestion_buttons = industry_div.find_elements_by_css_selector('li button')
+	for button in suggestion_buttons:
+		if button.get_attribute('title').lower() == industry.lower():
+			button.click()
+
+def encode_keyword_into_url(keyword):
 	'''
-	this is an alternative as the search bar in the enter_keyword() is removed.
+	this is an alternative as an update on linkedin as rendered the enter_keyword() deprecated.
 	'''
+	current_url = driver.current_url
 	if 'keywords' not in current_url: 
 		address = current_url + '&keywords=' + quote(keyword) 
 	else:
@@ -494,15 +487,13 @@ def encode_keyword_into_url(current_url, keyword):
 @retry
 def current_position(data_dict):
 	current_position = wait.until(EC.presence_of_element_located(ProfilePage.current_position))
-	text = sift_text(current_position)
-	if text:
+	if (text := sift_text(current_position)):
 		data_dict['Current Position'] = text
 
 @retry
 def duration(data_dict):
 	duration = wait.until(EC.visibility_of_element_located(ProfilePage.duration))
-	text = sift_text(duration)
-	if text:
+	if (text := sift_text(duration)):
 		data_dict['Duration'] = text
 
 def out_of_network(profile_link, li):
@@ -563,23 +554,31 @@ def traverse_pages():
 			# check to see if there's a no result notification 
 			# return if you can't find an element else do the necessary
 			if fetch_web_element(ResultPage.no_result):
-				return None
-				
+				return None				
 		card_operations()
-		
-def run_search(key):
-	split = key.rsplit(sep=',', maxsplit=1)
-	# add a location if it's not included in the file	
+
+def run_search(key, industry=False):
+	split = key.rsplit(sep=',', maxsplit=-1)
 	if len(split) == 1:
+		# add a location if it's not included in the file	
 		keyword, geo = unquote(split[0]), 'Singapore'
-	else:
+	elif len(split) == 2:
 		keyword, geo = split
-	
+	elif len(split) == 3:
+		keyword, geo, industry = split
+
+	# check if there's multiple double quotes in keywords
+	if re.search('"{2,}', keyword):
+		# replace multiple double quotes in keywords with one double quote
+		words = [ '"' + word.strip() + '"' for word in keyword.split('"') if word not in string.whitespace ]
+		keyword = ' '.join(words)
+
 	driver.get(base_url + '/sales/search/people/?')
-	current_url = enter_geography(geo.strip())
-	address = encode_keyword_into_url(current_url, keyword.strip())
+	enter_geography(geo.strip())
+	if industry:
+		enter_industry(industry)
+	address = encode_keyword_into_url(keyword)
 	driver.get(address)
-	sleep()
 	traverse_pages()
 
 def main():
@@ -587,10 +586,11 @@ def main():
 	login()
 	for key in FileReader().content:
 		try:
+			print(key)
 			run_search(key)
-			sleep()
 		except Exception as error:
 			logging.error(f'An error occured {error}')
+		sleep()
 
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
@@ -622,7 +622,7 @@ if __name__ == '__main__':
 
 	base_url = 'https://www.linkedin.com'
 	logging.basicConfig(format="## %(message)s", level=logging.INFO)
-	logging.disable() 
+	logging.disable(logging.INFO)
 	bs = Baselenium(driver_path)
 
 	driver = bs.driver
@@ -631,8 +631,8 @@ if __name__ == '__main__':
 	sift_text = bs.sift_text
 	scroll_to_view = bs.scroll_to_view
 
-	wait = WebDriverWait(driver, 60, ignored_exceptions=IGNORED_EXCEPTIONS)
-	writer = XlsxWriter(fields)
+	wait = WebDriverWait(driver, 45, ignored_exceptions=IGNORED_EXCEPTIONS)
 	handles = trigger_extra_tab()
+	writer = XlsxWriter(fields)
 	main()
 	writer.close_workbook()

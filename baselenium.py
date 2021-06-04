@@ -5,6 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
 class Baselenium:
+	# TODO: add a context mananger 
 	def __init__(self, driver_path):
 		self.driver_path = driver_path
 		self.create_driver()
