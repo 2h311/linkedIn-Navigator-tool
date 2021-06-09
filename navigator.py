@@ -18,10 +18,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (NoSuchElementException,
-										StaleElementReferenceException,
-										ElementNotVisibleException,
-										TimeoutException)
+from selenium.common.exceptions import (NoSuchElementException, StaleElementReferenceException, ElementNotVisibleException, TimeoutException)
+
 class Writer:
 	def __init__(self, filename):
 		self.filename = filename
@@ -225,16 +223,18 @@ class ResultItemWorks:
 		self.previous(dict_, li)
 		return dict_
 
-def retry(function):
-	'''tries to run a function after an unsuccessful attempt.'''
-	@functools.wraps(function)
-	def inner(*args, **kwargs):
-		for _ in range(3):
-			try:
-				return function(*args, **kwargs)	
-			except Exception as err:
-				print(err)
-	return inner
+def retry_wraps(times=1):
+	def retry(function):
+		'''tries to run a function after an unsuccessful attempt.'''
+		@functools.wraps(function)
+		def inner(*args, **kwargs):
+			for _ in range(times):
+				try:
+					return function(*args, **kwargs)	
+				except Exception as err:
+					logging.error(err)
+		return inner
+	return retry
 
 def config(filename='db.ini', section='navigator'):
 	'''
@@ -257,7 +257,7 @@ def sleep(secs=random.randint(1, 5)):
 	logging.info(f'sleeping for {secs} seconds')
 	time.sleep(secs)
 
-@retry
+@retry_wraps()
 def login():
 	# fetch the login credentials
 	credentials = config()
@@ -294,7 +294,7 @@ def trigger_extra_tab():
 		driver.execute_script("window.open('');")
 	return driver.window_handles
 
-@retry
+@retry_wraps()
 def interest(dict_):
 	interests = fetch_web_elements(ProfilePage.interests)
 	if interests:
@@ -308,7 +308,7 @@ def interest(dict_):
 		logging.info(interests)
 		dict_['Interests'] = interests
 
-@retry
+@retry_wraps()
 def recommendations(dict_):
 	# recommendations
 	recommendations = fetch_web_elements(ProfilePage.recommendations)
@@ -318,7 +318,7 @@ def recommendations(dict_):
 		logging.info(recommendations)
 		dict_['Recommendations'] = recommendations
 
-@retry
+@retry_wraps()
 def accomplishments(dict_):
 	# accomplishments
 	accomplishments = fetch_web_elements(ProfilePage.accomplishments)
@@ -328,18 +328,15 @@ def accomplishments(dict_):
 		logging.info(accomplishments)
 		dict_['Accomplishments'] = accomplishments
 
-@retry
+@retry_wraps()
 def skills(dict_):
 	# # featured skills and endorsements
 	profile_skills = fetch_web_element(ProfilePage.skills)
 	# check if there's a show more button
 	show_more = fetch_web_element(element=profile_skills, args=ProfilePage.show_more_skills_btn) 
 	if show_more:
-		try:
-			scroll_to_view(show_more)
-			driver.execute_script('arguments[0].click();', show_more)
-		except Exception as err:
-			print(f"An error occured: {err}") 
+		scroll_to_view(show_more)
+		driver.execute_script('arguments[0].click();', show_more)
 
 	skills = fetch_web_elements(element=profile_skills, args=ProfilePage.profile_skills) 
 	if skills:
@@ -348,16 +345,13 @@ def skills(dict_):
 		logging.info(skills)
 		dict_['Feature Skills and Endorsement'] = skills
 
-@retry
+@retry_wraps()
 def experience_previous_workplace(dict_):
 	# check if there's a show more button for the previous workplace 
 	show_more = fetch_web_element(ProfilePage.experience_show_more_btn)
 	if show_more:
-		try:
-			scroll_to_view(show_more)
-			driver.execute_script('arguments[0].click();', show_more)
-		except Exception as err:
-			print(f"An error occured: {err}") 
+		scroll_to_view(show_more)
+		driver.execute_script('arguments[0].click();', show_more)
 
 	positions = wait.until(EC.visibility_of_all_elements_located(ProfilePage.positions))
 	if positions:
@@ -366,7 +360,7 @@ def experience_previous_workplace(dict_):
 		logging.info(experience_previous_workplace)
 		dict_['Experience/Previous Workplace'] = experience_previous_workplace
 
-@retry
+@retry_wraps()
 def education(dict_):
 	# education 
 	education_history = wait.until(EC.visibility_of_all_elements_located(ProfilePage.education_history))
@@ -376,7 +370,7 @@ def education(dict_):
 		logging.info(education_history)
 		dict_['Education History'] = education_history
 
-@retry
+@retry_wraps()
 def current_workplace(dict_):
 	# current workplace
 	current_workplace = fetch_web_element(ProfilePage.current_workplace)
@@ -385,7 +379,7 @@ def current_workplace(dict_):
 		logging.info(current_workplace)
 		dict_['Current Workplace'] = current_workplace
 
-@retry
+@retry_wraps()
 def contacts(dict_):
 	contacts = fetch_web_elements(ProfilePage.contacts) 
 	if contacts:
@@ -398,7 +392,7 @@ def contacts(dict_):
 			logging.info(contacts)
 			dict_['Contact'] = contacts
 
-@retry
+@retry_wraps()
 def summary(dict_):
 	# fish out the summary element
 	summary_element = fetch_web_element(ProfilePage.entity_summary) 
@@ -420,12 +414,11 @@ def summary(dict_):
 		logging.info(summary)
 		dict_['Summary'] = summary
 
-@retry
+@retry_wraps()
 def name_photo_loc_con(dict_):
 	# profile page works
 	name = wait.until(EC.visibility_of_element_located(ProfilePage.name)) 
-	name = sift_text(name)
-	if name:
+	if (name := sift_text(name)):
 		logging.info(name)
 		dict_['Name'] = name	
 
@@ -445,7 +438,7 @@ def name_photo_loc_con(dict_):
 		logging.info(connections)
 		dict_['Connections'] = connections
 
-@retry
+@retry_wraps(3)
 def enter_geography(geo):
 	geo_div = driver.find_element_by_css_selector("[data-test-filter-code='GE']")
 	logging.info('filling the geography input')
@@ -457,7 +450,7 @@ def enter_geography(geo):
 	driver.execute_script('arguments[0].click();', geo_element)
 	sleep(5)
 
-@retry
+@retry_wraps(3)
 def enter_industry(industry):
 	logging.info('filling the industry input')	
 	# click the div to expose the input element
@@ -484,13 +477,13 @@ def encode_keyword_into_url(keyword):
 	logging.info(address)
 	return address
 
-@retry
+@retry_wraps()
 def current_position(data_dict):
 	current_position = wait.until(EC.presence_of_element_located(ProfilePage.current_position))
 	if (text := sift_text(current_position)):
 		data_dict['Current Position'] = text
 
-@retry
+@retry_wraps()
 def duration(data_dict):
 	duration = wait.until(EC.visibility_of_element_located(ProfilePage.duration))
 	if (text := sift_text(duration)):
@@ -528,21 +521,18 @@ def in_network(profile_link):
 def card_operations():
 	# fish out the list cards
 	lis = wait.until(EC.visibility_of_all_elements_located(SearchPage.result_items))
-	for li in lis:
+	for li in lis[1:]:
 		scroll_to_view(li)
-		
 		profile_link = fetch_web_element(element=li, args=ResultItem.profile_link)
 		if profile_link:
 			profile_link = profile_link.get_attribute('href')
-		
 			if 'OUT_OF_NETWORK' in profile_link:
 				data = out_of_network(profile_link, li)
 			else:
 				data = in_network(profile_link)
-			
 			pprint.pprint(data)
 			writer.write_to_sheet(data)
-			switch_window(handles[0])
+		switch_window(handles[0])
 
 def traverse_pages():
 	for counter in count(1):
@@ -590,7 +580,6 @@ def main():
 			run_search(key)
 		except Exception as error:
 			logging.error(f'An error occured {error}')
-		sleep()
 
 IGNORED_EXCEPTIONS = (
 	NoSuchElementException,
@@ -598,7 +587,7 @@ IGNORED_EXCEPTIONS = (
 	ElementNotVisibleException,
 	TimeoutException,)
 
-fields =[
+fields = [
 	'Name',
 	'Photo',
 	'Connections',
@@ -619,10 +608,8 @@ fields =[
 if __name__ == '__main__':
 	name = 'chromedriver' if platform.system() == 'Linux' else 'chromedriver.exe'
 	driver_path = Path('chromedriver') / name
-
 	base_url = 'https://www.linkedin.com'
 	logging.basicConfig(format="## %(message)s", level=logging.INFO)
-	logging.disable(logging.INFO)
 	bs = Baselenium(driver_path)
 
 	driver = bs.driver
@@ -631,7 +618,7 @@ if __name__ == '__main__':
 	sift_text = bs.sift_text
 	scroll_to_view = bs.scroll_to_view
 
-	wait = WebDriverWait(driver, 45, ignored_exceptions=IGNORED_EXCEPTIONS)
+	wait = WebDriverWait(driver, 30, ignored_exceptions=IGNORED_EXCEPTIONS)
 	handles = trigger_extra_tab()
 	writer = XlsxWriter(fields)
 	main()

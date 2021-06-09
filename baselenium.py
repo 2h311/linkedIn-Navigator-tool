@@ -21,7 +21,7 @@ class Baselenium:
 					self.driver.refresh()
 				print("Done loading cookies")
 
-	def create_driver(self):
+	def create_driver(self, wait_time=20):
 		'''
 		creates a browser instance for selenium, 
 		adds some functionalities into the browser instance
@@ -33,7 +33,7 @@ class Baselenium:
 		chrome_options.add_experimental_option("useAutomationExtension", False)
 		chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])
 		self.driver = webdriver.Chrome(executable_path=self.driver_path, options=chrome_options)
-		self.driver.implicitly_wait(30)
+		self.driver.implicitly_wait(wait_time)
 
 	def fetch_web_element(self, args:tuple, element=None):
 		try:
